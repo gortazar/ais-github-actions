@@ -28,21 +28,40 @@ jobs:
         name: target
         path: target
 
-  publish_in_dockerhub:
+  publish_in_heroku_registry:
     runs-on: ubuntu-20.04
     needs: [build]
+    env:
+      HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+      HEROKU_APP: ${{ secrets.HEROKU_APP }}
     steps:
       - uses: actions/checkout@v2
       - name: Download target folder published by build job
         uses: actions/download-artifact@v1
         with:
           name: target
-      - name: Generate tag version for Docker image
-        run: echo ::set-output name=tag::$(date +'%Y%m%d.%H%M%S')
-        id: version
-      - name: Login to Dockerhub
-        run: docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" -p "${{ secrets.DOCKERHUB_TOKEN }}"
-      - name: Build the Docker image
-        run: docker build -t "${{ secrets.DOCKERHUB_USERNAME }}"/items:${{ steps.version.outputs.tag }} .
-      - name: Publish in Dockerhub
-        run: docker push "${{ secrets.DOCKERHUB_USERNAME }}"/items:${{ steps.version.outputs.tag }}
+      - name: Build Docker image
+        run: docker build -t items .
+      - name: Install Heroku commandline client
+        run: curl https://cli-assets.heroku.com/install-ubuntu.sh | sh
+      - name: Change image name to point Heroku registry
+        run: docker tag items registry.heroku.com/$HEROKU_APP/web
+      - name: Login to Heroku container resitry
+        run: heroku container:login
+      - name: Publish in Heroku registry
+        run: docker push registry.heroku.com/$HEROKU_APP/web
+
+  deploy_in_heroku:
+    name: Deploy to Heroku
+    runs-on: ubuntu-20.04
+    needs: [publish_in_heroku_registry]
+    env:
+      HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+      HEROKU_APP: ${{ secrets.HEROKU_APP }}
+    steps:
+      - name: Install Heroku CLI
+        run: curl https://cli-assets.heroku.com/install-ubuntu.sh | sh
+      - name: Login to Heroku
+        run: heroku container:login
+      - name: Deploy app
+        run: heroku container:release web
