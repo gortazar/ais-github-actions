@@ -33,7 +33,7 @@ public class ItemsRepository {
 		this.postItem(item3);
 
         Item item4= new Item();
-        item4.setDescription("Me despliego solo!!");
+        item4.setDescription("Me despliego solo v2!!");
         item4.setChecked(true);
         this.postItem(item4);
     }
